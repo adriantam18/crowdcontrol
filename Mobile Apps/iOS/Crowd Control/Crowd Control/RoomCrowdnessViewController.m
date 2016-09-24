@@ -27,8 +27,8 @@
     if (!self.open) {
         self.navigationItem.title = @"CLOSED!";
     }
-    
-    
+
+
     // Encode strings for URL
     NSCharacterSet *set = [NSCharacterSet URLQueryAllowedCharacterSet];
     self.company = [self.company stringByAddingPercentEncodingWithAllowedCharacters:set];
@@ -46,26 +46,23 @@
 // Request data from the API
 - (void)requestDataFromAPI {
     // Set up URL for API call
-    NSString *urlString = [NSString stringWithFormat:@"https://crowdcontrol-adriantam18.rhcloud.com/requests.php/?data=crowd&comp=%@&branch=%@&room=%@",self.company, self.address, self.room];
-    
+    NSString *urlString = [NSString stringWithFormat:@"https://crowdcontrol-adriantam18.rhcloud.com/api/v1/room/%@",self.roomId];
+
     NSURL *URL = [NSURL URLWithString:urlString];
     AFHTTPSessionManager *manager = [AFHTTPSessionManager manager];
     [manager GET:URL.absoluteString parameters:nil progress:nil success:^(NSURLSessionTask *task, id responseObject) {
-        
+
         // Fill in the data for company
-        self.crowd = [responseObject objectForKey:@"crowd"];
-        self.companyLabel.text = self.crowd[@"company"];
-        self.addressLabel.text = self.crowd[@"address"];
-        self.roomLabel.text = self.crowd[@"room"];
-        self.roomCapacityLabel.text = self.capacity;
+        self.crowd = [responseObject objectForKey:@"data"];
+        self.roomLabel.text = self.crowd[@"room_number"];
         self.lastUpdateLabel.text = self.crowd[@"time"];
-        
+
         // Check if business is open before reporting crowdness
         if (self.open) {
             self.crowdnessLabel.text = [NSString stringWithFormat:@"%@%%", self.crowd[@"crowd"]];
 
             float crowdNumber = [self.crowd[@"crowd"] floatValue] / 100;
-            
+
             self.progressView.progress = crowdNumber;
             if (crowdNumber < 0.50) {
                 self.progressView.tintColor =[UIColor colorWithRed:0.20 green:0.60 blue:0.86 alpha:1.0];
@@ -79,7 +76,7 @@
             self.progressView.progress = 1;
             self.progressView.tintColor = [UIColor colorWithRed:0.75 green:0.22 blue:0.17 alpha:1.0];
         }
-        
+
     } failure:^(NSURLSessionTask *operation, NSError *error) {
         // Report any error to user with an alert
         NSLog(@"Error: %@", error);
