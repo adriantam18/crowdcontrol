@@ -159,7 +159,7 @@
             $row = $this->fetchData($sub_query, array(':address' => $room->address, ':company' => $room->company));
 
             if($row){
-                $branch_id = $row[0]['branch_id'];1
+                $branch_id = $row[0]['branch_id'];
                 $hash = password_hash($room->password, PASSWORD_DEFAULT);
 
                 $insert_room = "INSERT INTO room (`room_id`, `branch_id`, `room_number`, `max_capacity`, `password`)
