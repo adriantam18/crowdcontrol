@@ -1,0 +1,39 @@
+<?xml version="1.0" ?>
+<dataset>
+    <table name="company">
+        <column>company_id</column>
+        <column>company_name</column>
+        <column>type</column>
+        <column>join_date</column>
+        <row>
+            <value>3</value>
+            <value>Hunter College</value>
+            <value>School</value>
+            <value>2015-12-01</value>
+        </row>
+        <row>
+            <value>4</value>
+            <value>Starbucks Coffee</value>
+            <value>Restaurant</value>
+            <value>2015-11-30</value>
+        </row>
+        <row>
+            <value>7</value>
+            <value>SoRandom</value>
+            <value>Random</value>
+            <value>2016-03-03</value>
+        </row>
+        <row>
+            <value>9</value>
+            <value>Lipa Grill</value>
+            <value>Restaurant</value>
+            <value>2016-08-23</value>
+        </row>
+        <row>
+            <value>10</value>
+            <value>Queens College</value>
+            <value>School</value>
+            <value>2016-08-24</value>
+        </row>
+    </table>
+</dataset>

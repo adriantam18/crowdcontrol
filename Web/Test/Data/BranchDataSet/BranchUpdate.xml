@@ -1,0 +1,43 @@
+<?xml version="1.0" ?>
+<dataset>
+    <table name="branch">
+        <column>branch_id</column>
+        <column>company_id</column>
+        <column>address</column>
+        <column>zipcode</column>
+        <column>lat</column>
+        <column>lng</column>
+        <column>open_hours</column>
+        <column>close_hours</column>
+        <row>
+            <value>1</value>
+            <value>3</value>
+            <value>695 Park Ave New York NY</value>
+            <value>10065</value>
+            <value>40.768608</value>
+            <value>-73.965050</value>
+            <value>08:00:00</value>
+            <value>18:00:00</value>
+        </row>
+        <row>
+            <value>2</value>
+            <value>4</value>
+            <value>695 Park Ave New York NY</value>
+            <value>10065</value>
+            <value>40.768608</value>
+            <value>-73.965050</value>
+            <value>08:00:00</value>
+            <value>23:59:00</value>
+        </row>
+        <row>
+            <value>3</value>
+            <value>4</value>
+            <value>2034 Sunrise Highway Valley Stream NY</value>
+            <value>11581</value>
+            <value>40.662891</value>
+            <value>-73.712280</value>
+            <value>06:00:00</value>
+            <value>22:00:00</value>
+        </row>
+    </table>
+</dataset>
