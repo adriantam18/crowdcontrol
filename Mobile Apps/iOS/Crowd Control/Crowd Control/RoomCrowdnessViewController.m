@@ -46,7 +46,7 @@
 // Request data from the API
 - (void)requestDataFromAPI {
     // Set up URL for API call
-    NSString *urlString = [NSString stringWithFormat:@"https://crowdcontrol-adriantam18.rhcloud.com/api/v1/room/%@",self.roomId];
+    NSString *urlString = [NSString stringWithFormat:@"URL TO FETCH FROM",self.roomId];
 
     NSURL *URL = [NSURL URLWithString:urlString];
     AFHTTPSessionManager *manager = [AFHTTPSessionManager manager];
