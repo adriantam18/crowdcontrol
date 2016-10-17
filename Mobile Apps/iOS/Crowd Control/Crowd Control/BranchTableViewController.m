@@ -32,7 +32,7 @@
 // Request data from the API
 - (void)requestDataFromAPI {
     // Set up URL for API call
-    NSString *urlString = [NSString stringWithFormat:@"https://crowdcontrol-adriantam18.rhcloud.com/api/v1/branches/?company=%@",self.company];
+    NSString *urlString = [NSString stringWithFormat:@"URL TO FETCH FROM",self.company];
 
     NSURL *URL = [NSURL URLWithString:urlString];
     AFHTTPSessionManager *manager = [AFHTTPSessionManager manager];
