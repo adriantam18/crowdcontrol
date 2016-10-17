@@ -29,7 +29,7 @@
 // Request data from the API
 - (void)requestDataFromAPI {
     // Set up URL for API call
-    NSURL *URL = [NSURL URLWithString:@"https://crowdcontrol-adriantam18.rhcloud.com/api/v1/companies"];
+    NSURL *URL = [NSURL URLWithString:@"URL TO FETCH FROM"];
     AFHTTPSessionManager *manager = [AFHTTPSessionManager manager];
 
     [manager GET:URL.absoluteString parameters:nil progress:nil success:^(NSURLSessionTask *task, id responseObject) {
