@@ -1,6 +1,6 @@
 # Crowd Control System
-	*Server
-	*Client
-	*Mobile
+	[*Server](Web)
+	[*Client](Pi-Client)
+	[*Mobile](Mobile Apps)
 	
 
