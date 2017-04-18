@@ -113,13 +113,16 @@ public class BranchList extends AppCompatActivity implements BranchView {
         mErrorView.setVisibility(View.VISIBLE);
     }
 
-    public void showBranches(List<BranchData> branches){
-        mBranchListAdapter.replaceData(branches);
-    }
-
     @Override
     public void showData(List<BranchData> branches){
-        mBranchListAdapter.replaceData(branches);
+        mErrorView.setVisibility(View.GONE);
+        mListView.setVisibility(View.VISIBLE);
+
+        if(!branches.isEmpty()) {
+            mBranchListAdapter.replaceData(branches);
+        }else{
+            showError("No branches found");
+        }
     }
 
     @Override

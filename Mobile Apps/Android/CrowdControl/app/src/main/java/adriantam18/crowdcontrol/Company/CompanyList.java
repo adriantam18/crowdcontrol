@@ -111,7 +111,14 @@ public class CompanyList extends AppCompatActivity implements CompanyView {
 
     @Override
     public void showData(List<CompanyData> companies){
-        mAdapter.replaceData(companies);
+        mErrorView.setVisibility(View.GONE);
+        mListView.setVisibility(View.VISIBLE);
+
+        if(!companies.isEmpty()) {
+            mAdapter.replaceData(companies);
+        }else{
+            showError("No companies found");
+        }
     }
 
     @Override

@@ -97,6 +97,13 @@ public class CrowdList extends AppCompatActivity implements CrowdView {
 
     @Override
     public void showData(List<CrowdData> crowdData){
-        mCustomExpListAdapter.replaceData(crowdData);
+        mErrorView.setVisibility(View.GONE);
+        mExpandableListView.setVisibility(View.VISIBLE);
+
+        if(!crowdData.isEmpty()) {
+            mCustomExpListAdapter.replaceData(crowdData);
+        }else{
+            showError("No rooms found");
+        }
     }
 }
