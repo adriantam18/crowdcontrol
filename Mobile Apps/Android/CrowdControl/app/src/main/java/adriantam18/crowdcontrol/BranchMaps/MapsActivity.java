@@ -1,13 +1,18 @@
 package adriantam18.crowdcontrol.BranchMaps;
 
-import android.app.AlertDialog;
-import android.content.DialogInterface;
+import android.Manifest;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.location.Location;
+import android.os.Build;
 import android.os.Bundle;
-import android.support.v4.app.FragmentActivity;
+import android.support.annotation.NonNull;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.app.DialogFragment;
+import android.support.v4.content.ContextCompat;
+import android.support.v7.app.AppCompatActivity;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -37,10 +42,10 @@ import com.google.android.gms.maps.model.MarkerOptions;
 import com.google.maps.android.ui.IconGenerator;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
+import adriantam18.crowdcontrol.ConfirmDialog;
+import adriantam18.crowdcontrol.ConfirmDialogListener;
 import adriantam18.crowdcontrol.Model.BranchData;
 import adriantam18.crowdcontrol.Branch.BranchPresenter;
 import adriantam18.crowdcontrol.Branch.BranchView;
@@ -49,11 +54,12 @@ import adriantam18.crowdcontrol.R;
 import butterknife.BindView;
 import butterknife.ButterKnife;
 
-public class MapsActivity extends FragmentActivity implements
+public class MapsActivity extends AppCompatActivity implements
         OnMapReadyCallback,
         GoogleApiClient.ConnectionCallbacks,
         GoogleApiClient.OnConnectionFailedListener,
         LocationListener,
+        ConfirmDialogListener,
         BranchView{
 
     private GoogleMap mMap; // Might be null if Google Play services APK is not available.
@@ -71,24 +77,24 @@ public class MapsActivity extends FragmentActivity implements
     /** Current location of the user. */
     private Location mCurrLocation;
 
-    /** Alert dialog used to display messages. */
-    private AlertDialog mAlertDialog;
-
-    /** Displays while app is fetching data. */
-    private AlertDialog mWaitDialog;
-
     /** Company that the user is interested in getting locations for. */
     private String mCompany;
 
     /** Used in conjunction with the FusedLocationProviderApi. */
     private LocationRequest mLocationRequest;
 
-    private Map<String, Boolean> mMarkers;
+    private static final int LOCATION_PERMISSION_REQUEST_CODE = 1010;
+    private static final String COMPANY_KEY = "company";
+
+    private static final String ACTION_PERMISSION = "permission";
+    private static final String ACTION_CONFIRM = "confirm";
 
     @BindView(R.id.enter_comp)
     EditText mSearch;
 
     private BranchPresenter mPresenter;
+
+    private boolean mPermissionDenied = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,17 +104,19 @@ public class MapsActivity extends FragmentActivity implements
         ButterKnife.bind(this);
 
         createLocationRequest();
-        createAlertDialog();
 
-        mMarkers = new HashMap<>();
         mMapsAdapter = new MapsListAdapter(this, new ArrayList<BranchData>());
         mListView.setAdapter(mMapsAdapter);
         setListViewListenter();
 
-        Intent intent = getIntent();
-        mCompany = intent.getStringExtra("company");
+        if(savedInstanceState == null) {
+            Intent intent = getIntent();
+            mCompany = intent.getStringExtra("company");
+        }else{
+            mCompany = savedInstanceState.getString(COMPANY_KEY);
+        }
+
         mSearch.setText(mCompany.trim());
-        mSearch.setSelection(mCompany.length() - 1);
         mSearch.clearFocus();
 
         mPresenter = new BranchPresenter(this);
@@ -118,17 +126,29 @@ public class MapsActivity extends FragmentActivity implements
         mapFragment.getMapAsync(this);
     }
 
+    @Override
+    public void onSaveInstanceState(Bundle outState){
+        super.onSaveInstanceState(outState);
+
+        outState.putString(COMPANY_KEY, mSearch.getText().toString());
+    }
 
     @Override
-    protected void onResume() {
-        super.onResume();
-        setGoogleAPI();
+    protected void onResumeFragments() {
+        super.onResumeFragments();
+        if(mPermissionDenied) {
+            DialogFragment fragment = ConfirmDialog.newInstance("Location Permission", "Cannot display map without permission", ACTION_CONFIRM);
+            fragment.show(getSupportFragmentManager(), "DIALOG");
+            mPermissionDenied = false;
+        }
     }
 
     @Override
     protected void onPause(){
         super.onPause();
-        stopLocationUpdates();
+        if(mGoogleApiClient != null && mGoogleApiClient.isConnected()) {
+            stopLocationUpdates();
+        }
     }
 
     @Override
@@ -138,8 +158,10 @@ public class MapsActivity extends FragmentActivity implements
 
     @Override
     protected void onStop(){
-        stopLocationUpdates();
-        mGoogleApiClient.disconnect();
+        if(mGoogleApiClient != null && mGoogleApiClient.isConnected()){
+            stopLocationUpdates();
+            mGoogleApiClient.disconnect();
+        }
         super.onStop();
     }
 
@@ -163,8 +185,7 @@ public class MapsActivity extends FragmentActivity implements
     @Override
     public void onMapReady(GoogleMap map){
         mMap = map;
-        //Try to connect to google API
-        setGoogleAPI();
+        enableLocation();
     }
 
     @Override
@@ -176,22 +197,27 @@ public class MapsActivity extends FragmentActivity implements
 
     @Override
     public void onConnected(Bundle connectionHunt){
+        //Once connected to google api, check user's location settings
         setLocationCheck();
     }
 
     @Override
     public void onConnectionFailed(ConnectionResult result){
         Log.e("connection failed", result.toString());
+        showAlertDialog("Something went wrong. Try again later.");
     }
 
     @Override
     public void onConnectionSuspended(int result){
         Log.e("connection suspended", Integer.toString(result));
+        showAlertDialog("Something went wrong. Try again later.");
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data){
-        //If the user turned on location services, retrieve data from server
+        super.onActivityResult(requestCode, resultCode, data);
+        //If the user turned on location services, check to see if current location is set
+        //otherwise request location from location services
         if(resultCode == RESULT_OK){
             if(setCurrLocation())
                 fetchData();
@@ -200,6 +226,97 @@ public class MapsActivity extends FragmentActivity implements
         }else{
             showAlertDialog("To use this feature, the app needs access to your location.");
         }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
+                                           @NonNull int[] grantResults){
+        if(requestCode == LOCATION_PERMISSION_REQUEST_CODE){
+            if(permissions.length == 1 && permissions[0].equals(Manifest.permission.ACCESS_FINE_LOCATION)
+                    && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+                enableLocation();
+            }else{
+                mPermissionDenied = true;
+            }
+        }
+    }
+
+    @Override
+    public void onConfirmClick(String action){
+        switch (action){
+            case ACTION_PERMISSION:
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                        LOCATION_PERMISSION_REQUEST_CODE);
+                break;
+            default:
+                break;
+        }
+    }
+
+    /**
+     * This function is responsible for adding the markers on the map fragment where close locations
+     * are located. It also marks the location of the user. Also makes the list of branches visible if there are
+     * branches that are close to the user.
+     */
+    @Override
+    public void showData(List<BranchData> closeBranches){
+        mMapsAdapter.replaceData(closeBranches);
+        mMap.clear();
+        if(closeBranches.isEmpty()) {
+            showAlertDialog("Could not find any locations close to you.");
+        }else {
+            LatLng mypos = new LatLng(mCurrLocation.getLatitude(), mCurrLocation.getLongitude());
+            setMapMarker(mypos, "Your Location", Color.GREEN, 0);
+            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(mypos, 12));
+
+            //Will be used as label on map marker, User location is index 0
+            int index = 1;
+            for (BranchData branchData : closeBranches) {
+                LatLng latLng = new LatLng(Double.parseDouble(branchData.getLat()), Double.parseDouble(branchData.getLng()));
+                setMapMarker(latLng, branchData.getAddress(), Color.RED, index++);
+            }
+        }
+    }
+
+    /**
+     * Places a marker on a position on the map
+     * @param pos coordinates in degrees of a location
+     * @param title title for the map marker
+     * @param color color of the marker
+     * @param index number of the marker on the accompanying list
+     */
+    private void setMapMarker(LatLng pos, String title, int color, int index){
+        IconGenerator iconGen = new IconGenerator(this);
+        iconGen.setColor(color);
+        iconGen.setTextAppearance(R.style.mapLabel);
+
+        Bitmap icon;
+        if(index != 0){
+            icon = iconGen.makeIcon(Integer.toString(index));
+        }else{
+            icon = iconGen.makeIcon();
+        }
+
+        MarkerOptions markerOptions = new MarkerOptions()
+                .position(pos)
+                .title(title)
+                .icon(BitmapDescriptorFactory.fromBitmap(icon));
+
+        mMap.addMarker(markerOptions);
+    }
+
+    @Override
+    public void showRooms(BranchData branch){
+        Intent intent = new Intent(this, CrowdList.class);
+        intent.putExtra("company", mCompany);
+        intent.putExtra("address", branch.getAddress());
+        intent.putExtra("branch", branch.getId());
+        startActivity(intent);
+    }
+
+    @Override
+    public void showError(String message){
+        showAlertDialog(message);
     }
 
     /**
@@ -216,28 +333,12 @@ public class MapsActivity extends FragmentActivity implements
     }
 
     /**
-     * Initializes the alert dialog that this activity uses to display messages
-     */
-    private void createAlertDialog(){
-        mAlertDialog = new AlertDialog.Builder(this).create();
-        mAlertDialog.setButton(DialogInterface.BUTTON_NEUTRAL, "Okay", new DialogInterface.OnClickListener() {
-            @Override
-            public void onClick(DialogInterface dialog, int which) {
-                switch (which) {
-                    case DialogInterface.BUTTON_NEUTRAL:
-                        break;
-                }
-            }
-        });
-    }
-
-    /**
      * Opens up an alert dialog to display a message
      * @param message the message to display
      */
     private void showAlertDialog(String message){
-        mAlertDialog.setMessage(message);
-        mAlertDialog.show();
+        ConfirmDialog dialog = ConfirmDialog.newInstance("", message, ACTION_CONFIRM);
+        dialog.show(getSupportFragmentManager(), "Dialog");
     }
 
     public void mapSearchClicked(View view){
@@ -245,7 +346,21 @@ public class MapsActivity extends FragmentActivity implements
             mSearch.setError("Please enter a company");
         }else {
             mCompany = mSearch.getText().toString().trim().replaceAll("\\s+", "+");
-            setLocationCheck();
+            if(mGoogleApiClient != null && mGoogleApiClient.isConnected()) {
+                setLocationCheck();
+            }else {
+                enableLocation();
+            }
+        }
+    }
+
+    public void fetchData(){
+        if(mCurrLocation != null){
+            String lat = Double.toString(mCurrLocation.getLatitude());
+            String lng = Double.toString(mCurrLocation.getLongitude());
+            mPresenter.getBranches(mCompany, lat, lng);
+        }else{
+            showAlertDialog("Could not find your location");
         }
     }
 
@@ -266,7 +381,7 @@ public class MapsActivity extends FragmentActivity implements
         mLocationRequest = new LocationRequest();
         mLocationRequest.setInterval(10000);
         mLocationRequest.setFastestInterval(5000);
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_BALANCED_POWER_ACCURACY);
     }
 
     /**
@@ -307,49 +422,45 @@ public class MapsActivity extends FragmentActivity implements
     }
 
     /**
-     * This function is responsible for adding the markers on the map fragment where close locations
-     * are located. It also marks the location of the user. Also makes the list of branches visible if there are
-     * branches that are close to the user.
+     * Checks whether or not app should request for location permission or
+     * initialize Google api if permission has been granted
      */
-    @Override
-    public void showData(List<BranchData> closeBranches){
-        mMapsAdapter.replaceData(closeBranches);
-        mMap.clear();
-        if(closeBranches.isEmpty()) {
-            showAlertDialog("Could not find any locations close to you.");
-        }else {
-            LatLng mypos = new LatLng(mCurrLocation.getLatitude(), mCurrLocation.getLongitude());
-            setMapMarker(mypos, "Your Location", Color.GREEN, 0);
-            mMap.moveCamera(CameraUpdateFactory.newLatLngZoom(mypos, 12));
+    private void enableLocation(){
+        if(android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.M){
+            if(ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                    == PackageManager.PERMISSION_GRANTED){
+                setGoogleAPI();
+            }else{
+                checkLocationPermission();
+            }
+        }else{
+            setGoogleAPI();
+        }
+    }
 
-            int index = 1;
-            for (BranchData branchData : closeBranches) {
-                LatLng latLng = new LatLng(Double.parseDouble(branchData.getLat()), Double.parseDouble(branchData.getLng()));
-                setMapMarker(latLng, branchData.getAddress(), Color.RED, index++);
+    /**
+     * If location permission hasn't been granted, it will request the user for permission
+     * to use their location
+     */
+    private void checkLocationPermission(){
+        if(ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED){
+            if(ActivityCompat.shouldShowRequestPermissionRationale(this,
+                    Manifest.permission.ACCESS_FINE_LOCATION)){
+                DialogFragment dialog = ConfirmDialog.newInstance("Location Permission",
+                        "This app needs permission to access your location", ACTION_PERMISSION);
+                dialog.show(getSupportFragmentManager(), "DIALOG");
+            }else{
+                ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION},
+                        LOCATION_PERMISSION_REQUEST_CODE);
             }
         }
     }
 
-    private void setMapMarker(LatLng pos, String title, int color, int index){
-        IconGenerator iconGen = new IconGenerator(this);
-        iconGen.setColor(color);
-        iconGen.setTextAppearance(R.style.mapLabel);
-
-        Bitmap icon;
-        if(index != 0){
-            icon = iconGen.makeIcon(Integer.toString(index));
-        }else{
-            icon = iconGen.makeIcon();
-        }
-
-        MarkerOptions markerOptions = new MarkerOptions()
-                .position(pos)
-                .title(title)
-                .icon(BitmapDescriptorFactory.fromBitmap(icon));
-
-        mMap.addMarker(markerOptions);
-    }
-
+    /**
+     * Sets the last known location of the user
+     * @return true if last known location is available, false if it is null
+     */
     private boolean setCurrLocation(){
         try {
             mCurrLocation = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
@@ -359,6 +470,9 @@ public class MapsActivity extends FragmentActivity implements
         }
     }
 
+    /**
+     * Requests for location updates in cases where there is no known last location for the user
+     */
     private void startLocationUpdates(){
         try {
             LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient, mLocationRequest, this);
@@ -369,31 +483,8 @@ public class MapsActivity extends FragmentActivity implements
     }
 
     private void stopLocationUpdates(){
-        LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
-    }
-
-    public void fetchData(){
-        if(mCurrLocation != null){
-            String lat = Double.toString(mCurrLocation.getLatitude());
-            String lng = Double.toString(mCurrLocation.getLongitude());
-            mPresenter.getBranches(mCompany, lat, lng);
-        }else{
-            showAlertDialog("Could not find your location");
-        }
-    }
-
-    @Override
-    public void showRooms(BranchData branch){
-        Intent intent = new Intent(this, CrowdList.class);
-        intent.putExtra("company", mCompany);
-        intent.putExtra("address", branch.getAddress());
-        intent.putExtra("branch", branch.getId());
-        startActivity(intent);
-    }
-
-    @Override
-    public void showError(String message){
-        showAlertDialog(message);
+        if(mGoogleApiClient != null && mGoogleApiClient.isConnected())
+            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient, this);
     }
 }
 
