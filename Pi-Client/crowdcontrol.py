@@ -15,7 +15,7 @@ ap.add_argument("-r", "--room_id", default='id',
 args = vars(ap.parse_args())
 
 # post request information
-url = "YOUR POST URL"
+url = "YOUR PATCH URL"
 headers = {'Content-type': 'application/json'}
 
 # grab camera capture
