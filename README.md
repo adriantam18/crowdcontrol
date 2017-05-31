@@ -25,3 +25,9 @@ Crowd Control is a system that tracks the crowdedness of any indoor area and del
 2. In the update function of [RoomPdoRepository.php](Web/Data/RoomPdoRepository.php), comment out the password check
 3. In [crowdcontrol.py](Pi-Client/crowdcontrol.py), change the following: all password value -> password you created before, "YOUR POST URL" -> your url, "recorded_video4.mp4" -> filename of video you recorded. Finally, run [crowdcontrol.py](Pi-Client/crowdcontrol.py)
 4. Check your app or database for the updated values
+
+# Team Members:
+* Tenzin Choeden
+* Michael Loconte
+* Robert Ozimek
+* Adrian Tamayo
